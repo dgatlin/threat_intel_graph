@@ -13,9 +13,9 @@ class Neo4jConnection:
     
     def __init__(self):
         self.driver: Optional[Driver] = None
-        self._connect()
+        self._connected = False
     
-    def _connect(self) -> None:
+    def connect(self) -> bool:
         """Establish connection to Neo4j database."""
         try:
             self.driver = GraphDatabase.driver(
@@ -27,11 +27,13 @@ class Neo4jConnection:
             with self.driver.session(database=settings.neo4j_database) as session:
                 session.run("RETURN 1")
             
+            self._connected = True
             logger.info(
                 "Neo4j connection established",
                 uri=settings.neo4j_uri,
                 database=settings.neo4j_database
             )
+            return True
             
         except Exception as e:
             logger.error(
@@ -39,32 +41,41 @@ class Neo4jConnection:
                 error=str(e),
                 uri=settings.neo4j_uri
             )
-            raise
+            self._connected = False
+            return False
+    
+    def is_connected(self) -> bool:
+        """Check if connection is established."""
+        return self._connected
     
     def get_session(self):
         """Get a Neo4j session."""
-        if not self.driver:
-            self._connect()
-        return self.driver.session(database=settings.neo4j_database)
+        if not self.driver or not self._connected:
+            self.connect()
+        return self.driver.session(database=settings.neo4j_database) if self.driver else None
     
     def close(self) -> None:
         """Close the database connection."""
         if self.driver:
             self.driver.close()
+            self._connected = False
             logger.info("Neo4j connection closed")
     
     def health_check(self) -> bool:
         """Check if the database connection is healthy."""
         try:
-            with self.get_session() as session:
-                result = session.run("RETURN 1 as health")
+            session = self.get_session()
+            if not session:
+                return False
+            with session as s:
+                result = s.run("RETURN 1 as health")
                 return result.single()["health"] == 1
         except Exception as e:
             logger.error("Neo4j health check failed", error=str(e))
             return False
 
 
-# Global connection instance
+# Global connection instance (lazy initialization)
 neo4j_connection = Neo4jConnection()
 
 
@@ -75,13 +86,35 @@ def get_neo4j_session():
 
 def execute_query(query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """Execute a Cypher query and return results."""
-    with neo4j_connection.get_session() as session:
-        result = session.run(query, parameters or {})
-        return [dict(record) for record in result]
+    if not neo4j_connection.is_connected():
+        return []
+    
+    session = neo4j_connection.get_session()
+    if not session:
+        return []
+    
+    try:
+        with session as s:
+            result = s.run(query, parameters or {})
+            return [dict(record) for record in result]
+    except Exception as e:
+        logger.error("Query execution failed", error=str(e))
+        return []
 
 
 def execute_write_query(query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """Execute a write Cypher query and return results."""
-    with neo4j_connection.get_session() as session:
-        result = session.run(query, parameters or {})
-        return [dict(record) for record in result]
+    if not neo4j_connection.is_connected():
+        return []
+    
+    session = neo4j_connection.get_session()
+    if not session:
+        return []
+    
+    try:
+        with session as s:
+            result = s.run(query, parameters or {})
+            return [dict(record) for record in result]
+    except Exception as e:
+        logger.error("Write query execution failed", error=str(e))
+        return []
