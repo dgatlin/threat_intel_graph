@@ -294,3 +294,4 @@ class CampaignService:
                 ioc_timeline=[],
                 ttp_evolution=[]
             )
+
