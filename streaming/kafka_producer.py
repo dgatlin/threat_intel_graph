@@ -107,15 +107,24 @@ class ThreatIntelligenceProducer:
             self.logger.info("Kafka producer closed")
 
 
-# Global producer instance
-threat_producer = ThreatIntelligenceProducer()
+# Global producer instance (lazy initialization)
+threat_producer = None
+
+def get_threat_producer():
+    """Get or create the global threat producer instance."""
+    global threat_producer
+    if threat_producer is None:
+        threat_producer = ThreatIntelligenceProducer()
+    return threat_producer
 
 
 async def send_threat_intelligence_event(threat_data: Dict[str, Any], topic: str = None) -> bool:
     """Convenience function to send threat intelligence event."""
-    return await threat_producer.send_threat_intelligence(threat_data, topic)
+    producer = get_threat_producer()
+    return await producer.send_threat_intelligence(threat_data, topic)
 
 
 async def send_ioc_correlation_event(correlation_data: Dict[str, Any]) -> bool:
     """Convenience function to send IOC correlation event."""
-    return await threat_producer.send_ioc_correlation(correlation_data)
+    producer = get_threat_producer()
+    return await producer.send_ioc_correlation(correlation_data)
