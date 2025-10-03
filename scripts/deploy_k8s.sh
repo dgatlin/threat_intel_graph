@@ -30,7 +30,14 @@ kubectl apply -f k8s/configmap.yaml
 
 # Create Secret
 echo "🔐 Creating Secret..."
-kubectl apply -f k8s/secret.yaml
+if [ -f "k8s/secret.yaml" ]; then
+    kubectl apply -f k8s/secret.yaml
+else
+    echo "⚠️  k8s/secret.yaml not found. Please create it from k8s/secret.yaml.template"
+    echo "   Copy k8s/secret.yaml.template to k8s/secret.yaml and fill in your actual secrets"
+    echo "   Then run this script again."
+    exit 1
+fi
 
 # Create PersistentVolumeClaims
 echo "💾 Creating PersistentVolumeClaims..."

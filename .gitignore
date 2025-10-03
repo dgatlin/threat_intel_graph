@@ -150,3 +150,13 @@ kafka-logs/
 # Temporary files
 *.tmp
 *.temp
+
+# Kubernetes secrets (contains sensitive data)
+k8s/secret.yaml
+k8s/*-secret.yaml
+k8s/secrets/
+
+# Environment files with secrets
+.env.local
+.env.production
+.env.staging
