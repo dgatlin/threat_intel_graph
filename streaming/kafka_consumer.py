@@ -165,33 +165,257 @@ class ThreatIntelligenceProcessor:
     
     async def _process_ioc_data(self, ioc_data: Dict[str, Any]):
         """Process IOC data."""
-        # Store IOC in database, update correlations, etc.
         self.logger.info("Processing IOC data", ioc_id=ioc_data.get("id"))
-        # TODO: Implement IOC processing logic
+        
+        try:
+            from database.neo4j.connection import execute_write_query
+            
+            # Create or update IOC in Neo4j
+            query = """
+            MERGE (ioc:IOC {id: $id})
+            SET ioc.type = $type,
+                ioc.value = $value,
+                ioc.category = $category,
+                ioc.confidence = $confidence,
+                ioc.source = $source,
+                ioc.first_seen = $first_seen,
+                ioc.last_seen = $last_seen
+            RETURN ioc
+            """
+            
+            result = execute_write_query(query, {
+                "id": ioc_data.get("id"),
+                "type": ioc_data.get("type"),
+                "value": ioc_data.get("value"),
+                "category": ioc_data.get("category", "unknown"),
+                "confidence": ioc_data.get("confidence", 0.5),
+                "source": ioc_data.get("source", "kafka"),
+                "first_seen": ioc_data.get("first_seen", datetime.utcnow().isoformat()),
+                "last_seen": datetime.utcnow().isoformat()
+            })
+            
+            if result:
+                self.logger.info("IOC stored in Neo4j", ioc_id=ioc_data.get("id"))
+                
+                # Create relationships if threat actors are specified
+                if "threat_actors" in ioc_data:
+                    for actor_name in ioc_data["threat_actors"]:
+                        relationship_query = """
+                        MATCH (ioc:IOC {id: $ioc_id})
+                        MATCH (ta:ThreatActor {name: $actor_name})
+                        MERGE (ioc)-[:USED_BY]->(ta)
+                        """
+                        execute_write_query(relationship_query, {
+                            "ioc_id": ioc_data.get("id"),
+                            "actor_name": actor_name
+                        })
+                
+                # Create relationships if campaigns are specified
+                if "campaigns" in ioc_data:
+                    for campaign_name in ioc_data["campaigns"]:
+                        relationship_query = """
+                        MATCH (ioc:IOC {id: $ioc_id})
+                        MATCH (c:Campaign {name: $campaign_name})
+                        MERGE (ioc)-[:SEEN_IN]->(c)
+                        """
+                        execute_write_query(relationship_query, {
+                            "ioc_id": ioc_data.get("id"),
+                            "campaign_name": campaign_name
+                        })
+                        
+        except Exception as e:
+            self.logger.error("Failed to store IOC in Neo4j", error=str(e))
     
     async def _process_threat_actor_data(self, actor_data: Dict[str, Any]):
         """Process threat actor data."""
-        # Store threat actor in database, update relationships, etc.
         self.logger.info("Processing threat actor data", actor_id=actor_data.get("id"))
-        # TODO: Implement threat actor processing logic
+        
+        try:
+            from database.neo4j.connection import execute_write_query
+            
+            # Create or update threat actor in Neo4j
+            query = """
+            MERGE (ta:ThreatActor {id: $id})
+            SET ta.name = $name,
+                ta.aliases = $aliases,
+                ta.country = $country,
+                ta.motivation = $motivation,
+                ta.status = $status,
+                ta.sophistication = $sophistication,
+                ta.source = $source,
+                ta.first_seen = $first_seen,
+                ta.last_seen = $last_seen
+            RETURN ta
+            """
+            
+            result = execute_write_query(query, {
+                "id": actor_data.get("id"),
+                "name": actor_data.get("name"),
+                "aliases": actor_data.get("aliases", []),
+                "country": actor_data.get("country", "unknown"),
+                "motivation": actor_data.get("motivation", "unknown"),
+                "status": actor_data.get("status", "active"),
+                "sophistication": actor_data.get("sophistication", "unknown"),
+                "source": actor_data.get("source", "kafka"),
+                "first_seen": actor_data.get("first_seen", datetime.utcnow().isoformat()),
+                "last_seen": datetime.utcnow().isoformat()
+            })
+            
+            if result:
+                self.logger.info("Threat actor stored in Neo4j", actor_id=actor_data.get("id"))
+                
+                # Create relationships if campaigns are specified
+                if "campaigns" in actor_data:
+                    for campaign_name in actor_data["campaigns"]:
+                        relationship_query = """
+                        MATCH (ta:ThreatActor {id: $actor_id})
+                        MATCH (c:Campaign {name: $campaign_name})
+                        MERGE (ta)-[:BELONGS_TO]->(c)
+                        """
+                        execute_write_query(relationship_query, {
+                            "actor_id": actor_data.get("id"),
+                            "campaign_name": campaign_name
+                        })
+                        
+        except Exception as e:
+            self.logger.error("Failed to store threat actor in Neo4j", error=str(e))
     
     async def _process_campaign_data(self, campaign_data: Dict[str, Any]):
         """Process campaign data."""
-        # Store campaign in database, update timeline, etc.
         self.logger.info("Processing campaign data", campaign_id=campaign_data.get("id"))
-        # TODO: Implement campaign processing logic
+        
+        try:
+            from database.neo4j.connection import execute_write_query
+            
+            # Create or update campaign in Neo4j
+            query = """
+            MERGE (c:Campaign {id: $id})
+            SET c.name = $name,
+                c.description = $description,
+                c.status = $status,
+                c.objectives = $objectives,
+                c.start_date = $start_date,
+                c.end_date = $end_date,
+                c.source = $source
+            RETURN c
+            """
+            
+            result = execute_write_query(query, {
+                "id": campaign_data.get("id"),
+                "name": campaign_data.get("name"),
+                "description": campaign_data.get("description", ""),
+                "status": campaign_data.get("status", "active"),
+                "objectives": campaign_data.get("objectives", []),
+                "start_date": campaign_data.get("start_date"),
+                "end_date": campaign_data.get("end_date"),
+                "source": campaign_data.get("source", "kafka")
+            })
+            
+            if result:
+                self.logger.info("Campaign stored in Neo4j", campaign_id=campaign_data.get("id"))
+                
+                # Create relationships if IOCs are specified
+                if "iocs" in campaign_data:
+                    for ioc_id in campaign_data["iocs"]:
+                        relationship_query = """
+                        MATCH (c:Campaign {id: $campaign_id})
+                        MATCH (ioc:IOC {id: $ioc_id})
+                        MERGE (c)-[:INVOLVES]->(ioc)
+                        """
+                        execute_write_query(relationship_query, {
+                            "campaign_id": campaign_data.get("id"),
+                            "ioc_id": ioc_id
+                        })
+                        
+        except Exception as e:
+            self.logger.error("Failed to store campaign in Neo4j", error=str(e))
     
     async def _process_correlation_data(self, correlation_data: Dict[str, Any]):
         """Process correlation data."""
-        # Update asset risk scores, trigger alerts, etc.
         self.logger.info("Processing correlation data", correlation_id=correlation_data.get("id"))
-        # TODO: Implement correlation processing logic
+        
+        try:
+            from database.neo4j.connection import execute_write_query
+            
+            # Process asset-IOC correlations
+            if "asset_id" in correlation_data and "ioc_id" in correlation_data:
+                # Create exposure relationship between asset and IOC
+                exposure_query = """
+                MATCH (a:Asset {id: $asset_id})
+                MATCH (ioc:IOC {id: $ioc_id})
+                MERGE (a)-[:EXPOSED_TO]->(ioc)
+                SET a.last_updated = $timestamp
+                RETURN a, ioc
+                """
+                
+                result = execute_write_query(exposure_query, {
+                    "asset_id": correlation_data["asset_id"],
+                    "ioc_id": correlation_data["ioc_id"],
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+                
+                if result:
+                    self.logger.info("Asset-IOC correlation created", 
+                                   asset_id=correlation_data["asset_id"],
+                                   ioc_id=correlation_data["ioc_id"])
+            
+            # Update asset risk score based on threat intelligence
+            if "asset_id" in correlation_data and "threat_level" in correlation_data:
+                risk_update_query = """
+                MATCH (a:Asset {id: $asset_id})
+                SET a.threat_level = $threat_level,
+                    a.risk_score = $risk_score,
+                    a.last_updated = $timestamp
+                RETURN a
+                """
+                
+                threat_level = correlation_data["threat_level"]
+                risk_multipliers = {
+                    "unknown": 1.0,
+                    "low": 1.1,
+                    "medium": 1.3,
+                    "high": 1.6,
+                    "critical": 2.0
+                }
+                
+                base_risk = correlation_data.get("base_risk_score", 0.5)
+                enhanced_risk = min(base_risk * risk_multipliers.get(threat_level, 1.0), 1.0)
+                
+                execute_write_query(risk_update_query, {
+                    "asset_id": correlation_data["asset_id"],
+                    "threat_level": threat_level,
+                    "risk_score": enhanced_risk,
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+                
+                self.logger.info("Asset risk score updated", 
+                               asset_id=correlation_data["asset_id"],
+                               threat_level=threat_level,
+                               risk_score=enhanced_risk)
+                
+        except Exception as e:
+            self.logger.error("Failed to process correlation data", error=str(e))
 
 
-# Global processor instance
-threat_processor = ThreatIntelligenceProcessor()
+# Global processor instance (lazy initialization)
+threat_processor = None
+
+def get_threat_processor():
+    """Get or create the global threat processor instance."""
+    global threat_processor
+    if threat_processor is None:
+        threat_processor = ThreatIntelligenceProcessor()
+    return threat_processor
 
 
-async def start_threat_intelligence_processing():
+async def start_threat_intelligence_processing(timeout: int = None):
     """Start threat intelligence processing from Kafka."""
-    await threat_processor.start_processing()
+    processor = get_threat_processor()
+    consumer = ThreatIntelligenceConsumer()
+    processor.consumer = consumer
+    
+    try:
+        await consumer.consume_messages(timeout=timeout)
+    finally:
+        consumer.close()
+

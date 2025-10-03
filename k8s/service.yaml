@@ -69,3 +69,4 @@ spec:
     name: zookeeper
   selector:
     app: zookeeper
+
