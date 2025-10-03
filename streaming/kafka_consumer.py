@@ -195,3 +195,4 @@ threat_processor = ThreatIntelligenceProcessor()
 async def start_threat_intelligence_processing():
     """Start threat intelligence processing from Kafka."""
     await threat_processor.start_processing()
+

@@ -71,3 +71,4 @@ echo "  kubectl logs -n threat-intel deployment/threat-intel-api -f"
 echo ""
 echo "🧪 Test the API:"
 echo "  curl http://localhost:8000/api/v1/health"
+
