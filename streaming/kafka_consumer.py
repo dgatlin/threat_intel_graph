@@ -397,11 +397,25 @@ class ThreatIntelligenceProcessor:
             self.logger.error("Failed to process correlation data", error=str(e))
 
 
-# Global processor instance
-threat_processor = ThreatIntelligenceProcessor()
+# Global processor instance (lazy initialization)
+threat_processor = None
+
+def get_threat_processor():
+    """Get or create the global threat processor instance."""
+    global threat_processor
+    if threat_processor is None:
+        threat_processor = ThreatIntelligenceProcessor()
+    return threat_processor
 
 
-async def start_threat_intelligence_processing():
+async def start_threat_intelligence_processing(timeout: int = None):
     """Start threat intelligence processing from Kafka."""
-    await threat_processor.start_processing()
+    processor = get_threat_processor()
+    consumer = ThreatIntelligenceConsumer()
+    processor.consumer = consumer
+    
+    try:
+        await consumer.consume_messages(timeout=timeout)
+    finally:
+        consumer.close()
 
