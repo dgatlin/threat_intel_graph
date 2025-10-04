@@ -87,6 +87,9 @@ def get_neo4j_session():
 def execute_query(query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """Execute a Cypher query and return results."""
     if not neo4j_connection.is_connected():
+        neo4j_connection.connect()
+    
+    if not neo4j_connection.is_connected():
         return []
     
     session = neo4j_connection.get_session()
@@ -105,6 +108,9 @@ def execute_query(query: str, parameters: Optional[Dict[str, Any]] = None) -> Li
 def execute_write_query(query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """Execute a write Cypher query and return results."""
     if not neo4j_connection.is_connected():
+        neo4j_connection.connect()
+    
+    if not neo4j_connection.is_connected():
         return []
     
     session = neo4j_connection.get_session()
@@ -118,3 +124,12 @@ def execute_write_query(query: str, parameters: Optional[Dict[str, Any]] = None)
     except Exception as e:
         logger.error("Write query execution failed", error=str(e))
         return []
+
+
+def test_connection() -> bool:
+    """Test Neo4j database connection."""
+    try:
+        return neo4j_connection.connect()
+    except Exception as e:
+        logger.error("Connection test failed", error=str(e))
+        return False

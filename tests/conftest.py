@@ -58,7 +58,7 @@ def sample_threat_actor_data() -> Dict[str, Any]:
         "country": "unknown",
         "first_seen": datetime.utcnow().isoformat(),
         "last_seen": datetime.utcnow().isoformat(),
-        "confidence": 0.9,
+        "source": "test_source",
         "description": "Test threat actor for unit testing"
     }
 
@@ -74,7 +74,9 @@ def sample_campaign_data() -> Dict[str, Any]:
         "end_date": None,
         "status": "active",
         "objectives": ["data_theft", "espionage"],
-        "attributed_actors": ["ta_test_001"]
+        "threat_actors": ["ta_test_001"],
+        "source": "test_source",
+        "confidence": 0.8
     }
 
 

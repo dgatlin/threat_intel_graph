@@ -75,14 +75,13 @@ class TestNeo4jConnection:
     def test_execute_query_success(self, mock_connection):
         """Test successful query execution."""
         mock_session = MagicMock()
-        mock_result = MagicMock()
-        mock_result.data.return_value = [{"node": {"id": "test"}}]
-        mock_session.run.return_value = mock_result
+        mock_record = MagicMock()
+        mock_record.data.return_value = {"node": {"id": "test"}}
+        mock_session.run.return_value = [mock_record]
         
-        mock_driver = MagicMock()
-        mock_driver.session.return_value.__enter__.return_value = mock_session
-        
-        mock_connection.driver = mock_driver
+        # Set up the session context manager properly
+        mock_connection.get_session.return_value.__enter__.return_value = mock_session
+        mock_connection.get_session.return_value.__exit__.return_value = None
         mock_connection.is_connected.return_value = True
         
         query = "MATCH (n) RETURN n"
@@ -105,14 +104,13 @@ class TestNeo4jConnection:
     def test_execute_write_query_success(self, mock_connection):
         """Test successful write query execution."""
         mock_session = MagicMock()
-        mock_result = MagicMock()
-        mock_result.data.return_value = [{"node": {"id": "test"}}]
-        mock_session.run.return_value = mock_result
+        mock_record = MagicMock()
+        mock_record.data.return_value = {"node": {"id": "test"}}
+        mock_session.run.return_value = [mock_record]
         
-        mock_driver = MagicMock()
-        mock_driver.session.return_value.__enter__.return_value = mock_session
-        
-        mock_connection.driver = mock_driver
+        # Set up the session context manager properly
+        mock_connection.get_session.return_value.__enter__.return_value = mock_session
+        mock_connection.get_session.return_value.__exit__.return_value = None
         mock_connection.is_connected.return_value = True
         
         query = "CREATE (n:Test {id: $id}) RETURN n"

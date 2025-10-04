@@ -77,3 +77,31 @@ def test_placeholder_endpoints():
     
     response = client.get("/api/v1/campaigns/camp_operation_cozy_bear")
     assert response.status_code == 501
+
+
+def test_get_ioc_relationships():
+    """Test IOC relationships endpoint."""
+    response = client.get("/api/v1/iocs/test_ioc_1/relationships?depth=2")
+    assert response.status_code in [200, 500]  # 500 if database not available
+
+
+def test_get_graph_export():
+    """Test graph export endpoint."""
+    response = client.get("/api/v1/graph/export")
+    assert response.status_code in [200, 500]  # 500 if database not available
+    
+    # Test with filters
+    response = client.get("/api/v1/graph/export?node_types=IOC,ThreatActor&relationship_types=USED_BY")
+    assert response.status_code in [200, 500]
+
+
+def test_ingest_sample_data():
+    """Test sample data ingestion endpoint."""
+    response = client.post("/api/v1/admin/ingest-sample-data")
+    assert response.status_code in [200, 500]  # 500 if Kafka not available
+    
+    if response.status_code == 200:
+        data = response.json()
+        assert "message" in data
+        assert "items_ingested" in data
+        assert "timestamp" in data

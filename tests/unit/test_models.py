@@ -47,7 +47,7 @@ class TestIOCModel:
     def test_ioc_type_enum(self):
         """Test IOC type enum values."""
         assert IOCType.DOMAIN.value == "domain"
-        assert IOCType.IP.value == "ip"
+        assert IOCType.IP_ADDRESS.value == "ip_address"
         assert IOCType.HASH.value == "hash"
         assert IOCType.URL.value == "url"
         assert IOCType.EMAIL.value == "email"
@@ -56,7 +56,7 @@ class TestIOCModel:
         """Test IOC category enum values."""
         assert IOCCategory.MALWARE.value == "malware"
         assert IOCCategory.PHISHING.value == "phishing"
-        assert IOCCategory.C2.value == "c2"
+        assert IOCCategory.C2.value == "command_and_control"
 
 
 class TestIOCSearchRequest:
@@ -136,7 +136,7 @@ class TestThreatActorModel:
         actor = ThreatActor(
             id="ta_min",
             name="Test Actor",
-            confidence=0.7
+            source="test_source"
         )
         assert actor.id == "ta_min"
         assert actor.name == "Test Actor"
@@ -158,7 +158,9 @@ class TestCampaignModel:
         """Test campaign with minimal fields."""
         campaign = Campaign(
             id="camp_min",
-            name="Test Campaign"
+            name="Test Campaign",
+            source="test_source",
+            confidence=0.5
         )
         assert campaign.id == "camp_min"
         assert campaign.name == "Test Campaign"

@@ -14,6 +14,7 @@ from api.services.ioc_service import IOCService
 from api.services.threat_service import ThreatService
 from api.services.campaign_service import CampaignService
 from database.neo4j.connection import neo4j_connection
+from data.ingestion.feed_service import ingest_sample_threat_data
 
 # Configure logging
 configure_logging()
@@ -337,6 +338,44 @@ async def correlate_asset_with_threats(
     raise HTTPException(status_code=501, detail="Asset correlation service not yet implemented")
 
 
+@app.get("/api/v1/iocs/{ioc_id}/relationships")
+async def get_ioc_relationships(
+    ioc_id: str,
+    depth: int = Query(2, ge=1, le=5, description="Relationship traversal depth"),
+    ioc_service: IOCService = Depends(get_ioc_service)
+):
+    """Get relationship data for graph-based analysis."""
+    try:
+        relationships = await ioc_service.get_ioc_relationships(ioc_id, depth)
+        return {
+            "ioc_id": ioc_id,
+            "depth": depth,
+            "relationships": relationships,
+            "count": len(relationships)
+        }
+    except Exception as e:
+        logger.error("Failed to get IOC relationships", ioc_id=ioc_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to get relationships: {str(e)}")
+
+
+@app.get("/api/v1/graph/export")
+async def export_graph_data(
+    node_types: Optional[str] = Query(None, description="Comma-separated node types to include"),
+    relationship_types: Optional[str] = Query(None, description="Comma-separated relationship types to include"),
+    ioc_service: IOCService = Depends(get_ioc_service)
+):
+    """Export graph data for GNN training."""
+    try:
+        node_types_list = node_types.split(",") if node_types else None
+        rel_types_list = relationship_types.split(",") if relationship_types else None
+        
+        graph_data = await ioc_service.get_graph_export(node_types_list, rel_types_list)
+        return graph_data
+    except Exception as e:
+        logger.error("Failed to export graph data", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Graph export failed: {str(e)}")
+
+
 @app.get("/api/v1/enhance/risk-score")
 async def enhance_risk_score(
     asset_id: str,
@@ -371,6 +410,22 @@ async def enhance_risk_score(
     except Exception as e:
         logger.error("Failed to enhance risk score", asset_id=asset_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"Risk enhancement failed: {str(e)}")
+
+
+# Admin endpoints
+@app.post("/api/v1/admin/ingest-sample-data")
+async def ingest_sample_data():
+    """Ingest sample threat intelligence data for testing."""
+    try:
+        sample_count = await ingest_sample_threat_data()
+        return {
+            "message": "Sample data ingestion completed",
+            "items_ingested": sample_count,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error("Failed to ingest sample data", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Sample data ingestion failed: {str(e)}")
 
 
 if __name__ == "__main__":

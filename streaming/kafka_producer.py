@@ -37,6 +37,16 @@ class ThreatIntelligenceProducer:
             self.logger.error("Failed to connect to Kafka", error=str(e))
             raise
     
+    def test_connection(self) -> bool:
+        """Test Kafka connection."""
+        try:
+            if not self.producer:
+                self._connect()
+            return True
+        except Exception as e:
+            self.logger.error("Kafka connection test failed", error=str(e))
+            return False
+    
     async def send_threat_intelligence(self, threat_data: Dict[str, Any], topic: str = None) -> bool:
         """Send threat intelligence data to Kafka topic."""
         if not self.producer:

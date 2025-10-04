@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = "threat_intel_password"
-    neo4j_database: str = "threat_intelligence"
+    neo4j_database: str = "neo4j"
     
     # External Threat Feeds
     misp_url: Optional[str] = None

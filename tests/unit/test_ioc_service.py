@@ -204,3 +204,84 @@ class TestIOCService:
         result = await service.correlate_ioc_with_asset("ioc_001", "asset_001")
         
         assert result is False
+    
+    @pytest.mark.asyncio
+    @patch('api.services.ioc_service.execute_query')
+    async def test_get_ioc_relationships_success(self, mock_execute_query):
+        """Test successful IOC relationships retrieval."""
+        # Create mock records that behave like Neo4j records
+        mock_source = {"id": "ioc_1", "__labels__": ["IOC"]}
+        mock_target = {"id": "ta_1", "__labels__": ["ThreatActor"]}
+        mock_rel = {"type": "USED_BY"}
+        
+        mock_path_data = [
+            {
+                "source": mock_source,
+                "target": mock_target,
+                "relationships": [mock_rel],
+                "path_length": 2
+            }
+        ]
+        mock_execute_query.return_value = mock_path_data
+
+        service = IOCService()
+        result = await service.get_ioc_relationships("ioc_1", depth=2)
+
+        assert len(result) == 1
+        assert result[0]["source"] == "ioc_1"
+        assert result[0]["target"] == "ta_1"
+        mock_execute_query.assert_called_once()
+    
+    @pytest.mark.asyncio
+    @patch('api.services.ioc_service.execute_query')
+    async def test_get_ioc_relationships_error(self, mock_execute_query):
+        """Test IOC relationships retrieval with error."""
+        mock_execute_query.side_effect = Exception("Database error")
+        
+        service = IOCService()
+        result = await service.get_ioc_relationships("ioc_1")
+        
+        assert result == []
+    
+    @pytest.mark.asyncio
+    @patch('api.services.ioc_service.execute_query')
+    async def test_get_graph_export_success(self, mock_execute_query):
+        """Test successful graph export."""
+        # Mock nodes data - execute_query returns records with "n" key
+        nodes_data = [
+            {"n": {"id": "ioc_1", "type": "domain"}},
+            {"n": {"id": "ta_1", "name": "Test Actor"}}
+        ]
+        
+        # Mock relationships data - execute_query returns records with "a", "r", "b" keys
+        relationships_data = [
+            {
+                "a": {"id": "ioc_1"},
+                "b": {"id": "ta_1"},
+                "r": {"type": "USED_BY"}
+            }
+        ]
+        
+        mock_execute_query.side_effect = [nodes_data, relationships_data]
+        
+        service = IOCService()
+        result = await service.get_graph_export(["IOC", "ThreatActor"], ["USED_BY"])
+        
+        assert result["node_count"] == 2
+        assert result["relationship_count"] == 1
+        assert len(result["nodes"]) == 2
+        assert len(result["relationships"]) == 1
+        assert "export_timestamp" in result
+    
+    @pytest.mark.asyncio
+    @patch('api.services.ioc_service.execute_query')
+    async def test_get_graph_export_error(self, mock_execute_query):
+        """Test graph export with error."""
+        mock_execute_query.side_effect = Exception("Database error")
+        
+        service = IOCService()
+        result = await service.get_graph_export()
+        
+        assert "nodes" in result
+        assert "relationships" in result
+        assert "error" in result

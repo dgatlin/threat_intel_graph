@@ -68,7 +68,7 @@ The platform leverages Apache Kafka for real-time threat intelligence processing
 - **Correlation**: Automatic threat relationship analysis
 
 **Kafka Topics:**
-- `threat-feeds-raw` → `threat-feeds-processed` → `correlation-events` → `gnn-updates`
+- `threat-feeds-raw` → `threat-feeds-processed` → `correlation-events` → `AI/ML-updates`
 
 **Benefits:**
 - **Real-time**: Sub-second updates and correlation
@@ -186,13 +186,6 @@ erDiagram
 - **TTP** → **Vulnerability**: `EXPLOITS` - Technique exploits vulnerability
 - **Vulnerability** → **Asset**: `AFFECTS` - Vulnerability affects asset
 
-## 🏗️ System Architecture
-
-```
-External Threat Feeds → Kafka Streams → Data Normalizer → Neo4j Threat Graph
-                                                              ↓
-GNN Attack Path Project ← REST API ← Threat Intelligence API
-```
 
 ## 🚀 Quick Start
 
@@ -227,14 +220,30 @@ docker-compose -f docker/docker-compose.yml up neo4j -d
 python scripts/init_database.py
 ```
 
-5. **Run development server**
+5. **Populate with sample threat intelligence data**
+```bash
+# Option 1: Use the API endpoint (recommended for testing)
+curl -X POST http://localhost:8000/api/v1/admin/ingest-sample-data
+
+# Option 2: Start Kafka consumer for real-time processing
+python scripts/start_kafka_consumer.py
+```
+
+6. **Run development server**
 ```bash
 uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-6. **Test API**
+7. **Test API and verify data**
 ```bash
+# Health check
 curl http://localhost:8000/api/v1/health
+
+# Check if threat data was populated
+curl http://localhost:8000/api/v1/iocs/search?query=malicious
+
+# Get graph export for GNN integration
+curl http://localhost:8000/api/v1/graph/export
 ```
 
 ## 📊 API Endpoints
@@ -282,22 +291,49 @@ docker-compose -f docker/docker-compose.yml logs -f
 docker-compose -f docker/docker-compose.yml down
 ```
 
-## 🔗 Integration with GNN Project
+## 🔗 Integration with AI/ML Projects
 
-This API is designed to integrate with your existing GNN attack path project:
+This API is designed to integrate with AI and machine learning projects that consume graph data, including:
+
+- **Graph Neural Networks (GNNs)** for attack path analysis
+- **Knowledge Graph AI** for threat intelligence reasoning
+- **Graph-based ML models** for anomaly detection
+- **Network analysis tools** for cybersecurity research
+- **Graph databases** for complex relationship queries
+
+### Example Integration
 
 ```python
-# In your GNN project
+# In your AI/ML project
 import httpx
+import networkx as nx
+from typing import Dict, List
 
 class ThreatIntelligenceClient:
-    def __init__(self):
-        self.base_url = "http://threat-intel-api:8000"
+    def __init__(self, base_url: str = "http://threat-intel-api:8000"):
+        self.base_url = base_url
         self.client = httpx.AsyncClient()
     
-    async def get_asset_threat_context(self, asset_id: str):
+    async def get_asset_threat_context(self, asset_id: str) -> Dict:
+        """Get threat intelligence context for a specific asset"""
         response = await self.client.get(f"{self.base_url}/api/v1/iocs/asset/{asset_id}")
         return response.json()
+    
+    async def get_threat_relationships(self, ioc_id: str) -> List[Dict]:
+        """Get relationship data for graph-based analysis"""
+        response = await self.client.get(f"{self.base_url}/api/v1/iocs/{ioc_id}/relationships")
+        return response.json()
+    
+    async def build_threat_graph(self, seed_iocs: List[str]) -> nx.Graph:
+        """Build a NetworkX graph from threat intelligence data"""
+        graph = nx.Graph()
+        
+        for ioc_id in seed_iocs:
+            relationships = await self.get_threat_relationships(ioc_id)
+            for rel in relationships:
+                graph.add_edge(rel['source'], rel['target'], **rel['properties'])
+        
+        return graph
 ```
 
 ## 📈 Features
@@ -306,7 +342,7 @@ class ThreatIntelligenceClient:
 - **Real-time processing**: Kafka streams for high-throughput data ingestion
 - **Graph intelligence**: Neo4j for complex threat relationship analysis
 - **Privacy-preserving sharing**: Cross-organizational threat intelligence sharing
-- **REST API**: Clean integration with existing GNN projects
+- **REST API**: Clean integration with AI/ML and graph analysis projects
 - **Docker support**: Easy deployment and scaling
 
 ## 🧪 Testing

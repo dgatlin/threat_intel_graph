@@ -137,7 +137,7 @@ class ThreatIntelligenceProcessor:
             message_type = threat_data.get("type", "unknown")
             
             # Process based on message type
-            if message_type == "ioc":
+            if message_type in ["ioc", "domain", "ip_address", "hash", "url", "email", "certificate"]:
                 await self._process_ioc_data(threat_data)
             elif message_type == "threat_actor":
                 await self._process_threat_actor_data(threat_data)
@@ -411,11 +411,11 @@ def get_threat_processor():
 async def start_threat_intelligence_processing(timeout: int = None):
     """Start threat intelligence processing from Kafka."""
     processor = get_threat_processor()
-    consumer = ThreatIntelligenceConsumer()
+    consumer = ThreatIntelligenceConsumer(topics=["threat_intelligence", "ioc_correlation"])
     processor.consumer = consumer
     
     try:
-        await consumer.consume_messages(timeout=timeout)
+        await consumer.start_consuming()
     finally:
         consumer.close()
 
